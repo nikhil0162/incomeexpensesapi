@@ -1,0 +1,20 @@
+{
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintArgs": [
+        "--enable=W0611"
+    ],
+    "python.pythonPath": "/home/nikhil/.pyenv/versions/project1/bin/python",
+    "python.autoComplete.extraPaths": [
+        "/home/nikhil/.pyenv/versions/project1/bin/python"
+    ],
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "autopep8",
+    "python.linting.enable": true,
+    "python.linting.lintOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    },
+    "python.analysis.extraPaths": [
+        "/home/nikhil/.pyenv/versions/project1/bin/python"
+    ],
+}
