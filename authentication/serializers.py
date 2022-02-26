@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils.encoding import (DjangoUnicodeDecodeError, force_str,
                                    smart_bytes, smart_str)
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from rest_framework import exceptions
 from rest_framework.serializers import (CharField, EmailField, ModelSerializer,
                                         Serializer, ValidationError)
 
@@ -59,13 +60,13 @@ class LoginSerializer(ModelSerializer):
         user= authenticate(email=email, password=password)
 
         if not user:
-            raise authenticate.AuthenticationFailed("Invalid email or password")
+            raise exceptions.AuthenticationFailed("Invalid email or password")
 
         if not user.is_active:
-            raise authenticate.AuthenticationFailed("Account disabled, contact admin")
+            raise exceptions.AuthenticationFailed("Account disabled, contact admin")
 
         if not user.is_verified:
-            raise authenticate.AuthenticationFailed("Email is not verified")
+            raise exceptions.AuthenticationFailed("Email is not verified")
 
         return {
             'email': user.email,
@@ -122,7 +123,7 @@ class SetPasswordSerializer(Serializer):
             user_id = force_str(urlsafe_base64_decode(uidb64))
             user_obj = User.objects.get(id=user_id)
             if not PasswordResetTokenGenerator().check_token(user_obj, token):
-                return authenticate.AuthenticationFailed('The reset link is invalid', 401)
+                return exceptions.AuthenticationFailed('The reset link is invalid', 401)
             
             user_obj.set_password(password)
             user_obj.save()

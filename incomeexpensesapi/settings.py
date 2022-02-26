@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+from datetime import timedelta
 import os
 from pathlib import Path
 
@@ -43,6 +44,7 @@ INSTALLED_APPS = [
     'authentication.apps.AuthenticationConfig',
     'expenses.apps.ExpensesConfig',
     'income.apps.IncomeConfig',
+    'userstats.apps.UserstatsConfig',
 
     'rest_framework',
     'rest_framework_simplejwt',
@@ -61,7 +63,7 @@ MIDDLEWARE = [
 ]
 
 if DEBUG:
-    MIDDLEWARE.insert(0,"debug_toolbar.middleware.DebugToolbarMiddleware",)
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware",)
 
 INTERNAL_IPS = [
     "127.0.0.1",
@@ -144,26 +146,34 @@ STATIC_URL = '/static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
-    'NON_FIELD_ERRORS_KEY' : 'error',
+    'NON_FIELD_ERRORS_KEY': 'error',
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ]
 }
 
 
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+}
+
 SWAGGER_SETTINGS = {
-   'SECURITY_DEFINITIONS': {
-      'Basic': {
+    'SECURITY_DEFINITIONS': {
+        'Basic': {
             'type': 'basic'
-      },
-      'Bearer': {
+        },
+        'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header'
-      }
-   }
+        }
+    }
 }
 
 
