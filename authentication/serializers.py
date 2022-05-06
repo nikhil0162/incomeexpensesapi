@@ -7,7 +7,9 @@ from django.utils.encoding import (DjangoUnicodeDecodeError, force_str,
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import exceptions
 from rest_framework.serializers import (CharField, EmailField, ModelSerializer,
-                                        Serializer, ValidationError)
+                                        Serializer, SerializerMethodField,
+                                        ValidationError)
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .utils import Util
 
@@ -19,13 +21,14 @@ class RegisterSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['email','username', 'password']
+        fields = ['email', 'username', 'password']
 
     def validate(self, attrs):
         email = attrs.get('email', '')
         username = attrs.get('username', '')
         if not username.isalnum():
-            raise ValidationError('Username must be in alphanumeric characters')
+            raise ValidationError(
+                'Username must be in alphanumeric characters')
         return attrs
 
     def create(self, validated_data):
@@ -41,49 +44,58 @@ class EmailVerificationSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields= ['token']
+        fields = ['token']
 
 
 class LoginSerializer(ModelSerializer):
     email = EmailField(max_length=255)
     password = CharField(max_length=68, min_length=6, write_only=True)
-    tokens = CharField(max_length=500, min_length=6,read_only=True)
+    tokens = SerializerMethodField()
 
     class Meta:
         model = User
-        fields= ['email', 'password', 'tokens']
+        fields = ['email', 'password', 'tokens']
 
-    def validate(self, attrs):        
+    def validate(self, attrs):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
 
-        user= authenticate(email=email, password=password)
+        user = authenticate(email=email, password=password)
 
         if not user:
             raise exceptions.AuthenticationFailed("Invalid email or password")
 
         if not user.is_active:
-            raise exceptions.AuthenticationFailed("Account disabled, contact admin")
+            raise exceptions.AuthenticationFailed(
+                "Account disabled, contact admin")
 
         if not user.is_verified:
             raise exceptions.AuthenticationFailed("Email is not verified")
 
+        # return {
+        #     'email': user.email,
+        #     'username': user.username,
+        #     'tokens': user.tokens
+        # }
+        return super(LoginSerializer, self).validate(attrs)
+
+    def get_tokens(self, obj):
+        token_obj = User.objects.get(email=obj['email']).tokens()
         return {
-            'email': user.email,
-            'username': user.username,
-            'tokens': user.tokens
-            }
-        return super().validate(attrs)
-         
+            'access': token_obj['access'],
+            'refresh': token_obj['refresh']
+        }
+
 
 class RequestPasswordResetEmailSerializer(Serializer):
     email = EmailField(min_length=2)
 
+    redirect_url = CharField(max_length=500, required=False)
+
     class Meta:
         fields = ['email']
 
-    def validate(self, attrs):     
-        print(self.context['request'])   
+    def validate(self, attrs):
         email = attrs.get('email', '')
         if User.objects.filter(email=email).first():
             user = User.objects.get(email=email)
@@ -91,12 +103,16 @@ class RequestPasswordResetEmailSerializer(Serializer):
             token = PasswordResetTokenGenerator().make_token(user)
 
             # get link
-            relative_link = reverse('authentication:password-reset-confirm', kwargs={'uidb64':uidb64, 'token':token})
-            print(self.context['request'])
+            relative_link = reverse(
+                'authentication:password-reset-confirm', kwargs={'uidb64': uidb64, 'token': token})
+
             domain = get_current_site(self.context['request']).domain
+
+            redirect_url = self.context.get(
+                'request').data.get('redirect_url', "")
             absurl = f'http://{domain}{relative_link}'
-            
-            email_body = f'Hello, \n Use below link to reset your password \n {absurl}'
+
+            email_body = f'Hello, \n Use below link to reset your password \n {absurl}?redirect_url={redirect_url}'
             data = {
                 'email_body': email_body,
                 'subject': 'Reset your password',
@@ -124,7 +140,7 @@ class SetPasswordSerializer(Serializer):
             user_obj = User.objects.get(id=user_id)
             if not PasswordResetTokenGenerator().check_token(user_obj, token):
                 return exceptions.AuthenticationFailed('The reset link is invalid', 401)
-            
+
             user_obj.set_password(password)
             user_obj.save()
         except DjangoUnicodeDecodeError:
@@ -132,3 +148,17 @@ class SetPasswordSerializer(Serializer):
         except User.DoesNotExist:
             raise ValidationError('User Does not exist')
         return super().validate(attrs)
+
+
+class LogoutSerializer(Serializer):
+    refresh = CharField()
+
+    def validate(self, attrs):
+        self.token = attrs['refresh']
+        return attrs
+
+    def save(self, **kwargs):
+        try:
+            RefreshToken(self.token).blacklist()
+        except TokenError:
+            self.fail('Bad Token')
