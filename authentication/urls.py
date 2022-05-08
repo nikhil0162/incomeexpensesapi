@@ -1,8 +1,9 @@
 from django.urls import path
 
-from .views import (LoginView, LogoutAPIView, PasswordTokenCheckAPI,
-                    RegisterView, RequestPasswordResetEmail,
-                    SetPasswordAPIView, VerifyEmailView)
+from .views import (AuthUserAPIview, LoginView, LogoutAPIView,
+                    PasswordTokenCheckAPI, RegisterView,
+                    RequestPasswordResetEmail, SetPasswordAPIView,
+                    VerifyEmailView)
 
 app_name = 'authentication'
 
@@ -17,4 +18,7 @@ urlpatterns = [
          name='request-reset-email'),
     path('password-reset-complete/', SetPasswordAPIView.as_view(),
          name='password-reset-complete'),
+    path('user/', AuthUserAPIview.as_view(),
+         name='auth-user'),
+
 ]

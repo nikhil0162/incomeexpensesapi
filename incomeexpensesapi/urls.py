@@ -52,3 +52,7 @@ urlpatterns = [
          cache_timeout=0), name='schema-redoc'),
     path('__debug__/', include('debug_toolbar.urls')),
 ]
+
+
+handler404 = 'utils.views.error_404'
+handler500 = 'utils.views.error_500'
